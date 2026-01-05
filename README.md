@@ -17,7 +17,7 @@ Herramienta diseñada para generar sets de Pokémon legales y listos para import
 
 ## 🛠️ Instalación
 
-1. Ve a la sección de [Releases](LINK_A_TU_REPO/releases).
+1. Ve a la sección de [Releases](https://github.com/Rs44v3dr4/PokeGen-AutoGenerator/releases).
 2. Descarga el archivo `.zip` de la última versión.
 3. Descomprime y ejecuta el archivo `.exe`.
 4. Escribe tu petición (ej: "Garchomp defensivo con baya ziuela híper").
@@ -27,5 +27,6 @@ Herramienta diseñada para generar sets de Pokémon legales y listos para import
 Este software no está afiliado con Nintendo, Game Freak ni The Pokémon Company. Es una herramienta de ayuda para la gestión de partidas guardadas.
 
 ## 📄 Licencia
+
 
 Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para más detalles.
