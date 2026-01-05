@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Dev.PokeGen/Dev.PokeGen.csproj" />
+  <Project Path="PokeGenBot/PokeGenBot.csproj" />
+</Solution>
