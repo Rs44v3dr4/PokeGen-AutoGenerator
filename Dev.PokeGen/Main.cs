@@ -39,8 +39,13 @@ namespace Dev.PokeGen
                         txtCanal.Text = config.CanalId.ToString();
                         txtRol.Text = config.RolId.ToString();
 
-                        // Carga la API Key guardada para que no tengas que pegarla siempre
-                        txtGeminiKey.Text = config.GeminiApiKey;
+                        // --- NUEVA LÓGICA DE CARGA ---
+                        // Si la lista no es nula, unimos todas las keys con un salto de línea
+                        if (config.ApiKeys != null && config.ApiKeys.Count > 0)
+                        {
+                            txtApiKeys.Text = string.Join(Environment.NewLine, config.ApiKeys);
+                        }
+                        // -----------------------------
 
                         LogToConsole("Configuración cargada correctamente.", System.Drawing.Color.Cyan);
                     }
@@ -57,13 +62,26 @@ namespace Dev.PokeGen
             if (!ulong.TryParse(txtCanal.Text, out ulong canalId)) return;
             if (!ulong.TryParse(txtRol.Text, out ulong rolId)) return;
 
+            // 1. Recoger las Keys del TextBox Multilínea
+            List<string> listaKeys = txtApiKeys.Text
+                .Split(new[] { Environment.NewLine, "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(k => k.Trim()) // Quitamos espacios en blanco accidentales
+                .Where(k => !string.IsNullOrEmpty(k)) // Aseguramos que no haya líneas vacías
+                .ToList();
+
+            if (listaKeys.Count == 0)
+            {
+                MessageBox.Show("Debes ingresar al menos una API Key de Gemini.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             // Creamos el objeto de configuración de la librería
             var config = new PokeGenBot.BotConfig
             {
                 Token = txtToken.Text,
                 CanalId = canalId,
                 RolId = rolId,
-                GeminiApiKey = txtGeminiKey.Text // <--- AQUÍ SE ASIGNA EL VALOR
+                ApiKeys = listaKeys // Guardamos la lista completa
             };
 
             File.WriteAllText(ConfigFile, JsonSerializer.Serialize(config));
@@ -120,26 +138,45 @@ namespace Dev.PokeGen
         }
 
         // ... (El resto de funciones HandleCommandAsync, LogAsync y LogToConsole son iguales) ...
-        // Copia las que te pasé en el mensaje anterior si te faltan.
-
         private async Task HandleCommandAsync(SocketMessage arg)
         {
             var message = arg as SocketUserMessage;
             if (message == null || message.Author.IsBot) return;
 
+            if (!ulong.TryParse(txtCanal.Text, out ulong canalId)) return;
+
+            ulong canalPermitidoId = canalId; // <--- TU ID AQUÍ
+
+            // Si el mensaje NO viene de ese canal, cancelamos la ejecución inmediatamente.
+            if (message.Channel.Id != canalPermitidoId)
+            {
+                return;
+            }
+            // -------------------------------------
+
             int argPos = 0;
             if (message.HasCharPrefix('!', ref argPos))
             {
-                // Esto permite "vigilar" desde el front-end
+                // Opcional: Si quieres evitar llenar la consola con comandos de otros bots,
+                // puedes mover este Log DEBAJO de la ejecución o filtrarlo también.
                 LogToConsole($"[PETICIÓN] {message.Author.Username}: {message.Content}", System.Drawing.Color.Yellow);
 
                 var context = new SocketCommandContext(_client, message);
                 var result = await _commands.ExecuteAsync(context, argPos, _services);
 
                 if (!result.IsSuccess)
+                {
+                    // --- AQUÍ ESTÁ EL CAMBIO ---
+                    if (result.Error == CommandError.UnknownCommand)
+                        return;
+
+                    // Si es otro tipo de error (ej. faltan parámetros, error de código), entonces sí avísanos.
                     LogToConsole($"[ERROR] {result.ErrorReason}", System.Drawing.Color.Red);
+                }
                 else
+                {
                     LogToConsole($"[ÉXITO] Pokémon enviado a {message.Author.Username}", System.Drawing.Color.Lime);
+                }
             }
         }
 

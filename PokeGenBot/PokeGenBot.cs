@@ -5,6 +5,8 @@
         public string Token { get; set; }
         public ulong CanalId { get; set; }
         public ulong RolId { get; set; }
-        public string GeminiApiKey { get; set; } // Nueva propiedad para la IA
+
+        // CAMBIO: Antes era string GeminiApiKey, ahora es una lista
+        public List<string> ApiKeys { get; set; } = new List<string>();
     }
 }

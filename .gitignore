@@ -1,0 +1,9 @@
+﻿################################################################################
+# Este archivo .gitignore ha sido creado automáticamente por Microsoft(R) Visual Studio.
+################################################################################
+
+/PokeGenBot/bin
+/PokeGenBot/obj
+/Dev.PokeGen/bin
+/Dev.PokeGen/obj
+/.vs

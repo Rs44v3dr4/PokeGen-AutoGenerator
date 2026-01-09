@@ -24,7 +24,7 @@ namespace PokeGenBot
             using (Context.Channel.EnterTypingState())
             {
                 // 3. Llamada a la IA (usando tu nueva configuración de Gemini 2.5)
-                string resultado = await AIService.GenerarShowdown(query, _config.GeminiApiKey);
+                string resultado = await AIService.GenerarShowdown(query, _config.ApiKeys);
 
                 // 4. Verificar si hubo error (Rojo)
                 if (resultado.StartsWith("Error") || resultado.Contains("⚠️") || resultado.Contains("❌"))
