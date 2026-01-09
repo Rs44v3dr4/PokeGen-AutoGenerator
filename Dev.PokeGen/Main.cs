@@ -1,4 +1,4 @@
-using Discord;
+ï»¿using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
@@ -7,7 +7,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using PokeGenBot; // <--- Importante: Usamos la librería compilada
+using PokeGenBot; // <--- Importante: Usamos la librerÃ­a compilada
 
 namespace Dev.PokeGen
 {
@@ -18,6 +18,7 @@ namespace Dev.PokeGen
         private IServiceProvider _services;
         private const string ConfigFile = "config.json";
         private bool _isRunning = false;
+        private PokeGenBot.BotConfig _currentConfig;
 
         public Main()
         {
@@ -39,18 +40,18 @@ namespace Dev.PokeGen
                         txtCanal.Text = config.CanalId.ToString();
                         txtRol.Text = config.RolId.ToString();
 
-                        // --- NUEVA LÓGICA DE CARGA ---
-                        // Si la lista no es nula, unimos todas las keys con un salto de línea
+                        // --- NUEVA LÃ“GICA DE CARGA ---
+                        // Si la lista no es nula, unimos todas las keys con un salto de lÃ­nea
                         if (config.ApiKeys != null && config.ApiKeys.Count > 0)
                         {
                             txtApiKeys.Text = string.Join(Environment.NewLine, config.ApiKeys);
                         }
                         // -----------------------------
 
-                        LogToConsole("Configuración cargada correctamente.", System.Drawing.Color.Cyan);
+                        LogToConsole("ConfiguraciÃ³n cargada correctamente.", System.Drawing.Color.Cyan);
                     }
                 }
-                catch { LogToConsole("Error al cargar la configuración.", System.Drawing.Color.Red); }
+                catch { LogToConsole("Error al cargar la configuraciÃ³n.", System.Drawing.Color.Red); }
             }
         }
 
@@ -62,11 +63,11 @@ namespace Dev.PokeGen
             if (!ulong.TryParse(txtCanal.Text, out ulong canalId)) return;
             if (!ulong.TryParse(txtRol.Text, out ulong rolId)) return;
 
-            // 1. Recoger las Keys del TextBox Multilínea
+            // 1. Recoger las Keys del TextBox MultilÃ­nea
             List<string> listaKeys = txtApiKeys.Text
                 .Split(new[] { Environment.NewLine, "\n", "\r" }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(k => k.Trim()) // Quitamos espacios en blanco accidentales
-                .Where(k => !string.IsNullOrEmpty(k)) // Aseguramos que no haya líneas vacías
+                .Where(k => !string.IsNullOrEmpty(k)) // Aseguramos que no haya lÃ­neas vacÃ­as
                 .ToList();
 
             if (listaKeys.Count == 0)
@@ -75,7 +76,7 @@ namespace Dev.PokeGen
                 return;
             }
 
-            // Creamos el objeto de configuración de la librería
+            // Creamos el objeto de configuraciÃ³n de la librerÃ­a
             var config = new PokeGenBot.BotConfig
             {
                 Token = txtToken.Text,
@@ -101,11 +102,52 @@ namespace Dev.PokeGen
             }
         }
 
+        private async Task BotListoParaTrabajar()
+        {
+            // 1. Obtenemos el ID del canal desde tu TextBox o ConfiguraciÃ³n
+            // (AsegÃºrate de que txtCanal.Text tenga un nÃºmero vÃ¡lido)
+            if (ulong.TryParse(txtCanal.Text, out ulong canalId))
+            {
+                var canal = _client.GetChannel(canalId) as IMessageChannel;
+
+                if (canal != null)
+                {
+                    // 2. Construimos el "Embed" (La tarjeta bonita)
+                    var embed = new EmbedBuilder()
+                        .WithTitle("ðŸŸ¢ SISTEMA EN LÃNEA") // TÃ­tulo
+                        .WithDescription($"**{_client.CurrentUser.Username}** se ha iniciado correctamente y estÃ¡ listo para recibir pedidos.")
+                        .AddField("ðŸ“… Fecha de Inicio", DateTime.Now.ToString("dd/MM/yyyy HH:mm tt"), true) // Campo 1 (Lado Izquierdo)
+                        .AddField("ðŸ“¶ Latencia", $"{_client.Latency} ms", true) // Campo 2 (Lado Derecho)
+                        .WithColor(Discord.Color.Green) // Borde Verde
+                        .WithThumbnailUrl(_client.CurrentUser.GetAvatarUrl() ?? _client.CurrentUser.GetDefaultAvatarUrl()) // Foto del bot
+                        .WithFooter("PokeGen Bot System â€¢ v1.0", "https://i.imgur.com/A6j5yD3.png") // Un pie de pÃ¡gina opcional
+                        .WithCurrentTimestamp()
+                        .Build();
+
+                    // 3. Enviamos el mensaje
+                    await canal.SendMessageAsync(embed: embed);
+
+                    LogToConsole("Mensaje de inicio enviado al canal.", System.Drawing.Color.Lime);
+                }
+                else
+                {
+                    LogToConsole("No se encontrÃ³ el canal para enviar el saludo.", System.Drawing.Color.Orange);
+                }
+            }
+
+            // Importante: Desuscribirse para que no lo mande doble si se reconecta solo
+            _client.Ready -= BotListoParaTrabajar;
+        }
+
         private async Task StartBotAsync(PokeGenBot.BotConfig config)
         {
+            // 1. Guardamos la config globalmente para usarla en el mensaje de bienvenida
+            _currentConfig = config;
+
             _client = new DiscordSocketClient(new DiscordSocketConfig
             {
                 LogLevel = LogSeverity.Info,
+                // MessageContent es CRÃTICO para leer comandos, Â¡bien hecho!
                 GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent
             });
 
@@ -114,23 +156,28 @@ namespace Dev.PokeGen
             _services = new ServiceCollection()
                 .AddSingleton(_client)
                 .AddSingleton(_commands)
-                .AddSingleton(config) // Inyectamos la config de PokeGenBot
+                .AddSingleton(config) // InyecciÃ³n de dependencia correcta
                 .BuildServiceProvider();
 
             _client.Log += LogAsync;
             _client.MessageReceived += HandleCommandAsync;
 
+            // --- EVENTO 1: Actualizar la Interfaz GrÃ¡fica (Tu cÃ³digo original) ---
             _client.Ready += () =>
             {
                 this.Invoke((MethodInvoker)delegate
                 {
                     lblEstado.Text = "Conectado: " + _client.CurrentUser.Username;
-                    LogToConsole("¡Bot Online!", System.Drawing.Color.Lime);
+                    lblEstado.ForeColor = System.Drawing.Color.Green; // Un toque visual extra
+                    LogToConsole("Â¡Bot Online y listo!", System.Drawing.Color.Lime);
                 });
                 return Task.CompletedTask;
             };
 
-            // Cargamos el módulo desde la DLL referenciada
+            // --- EVENTO 2: Mandar la Tarjeta de Bienvenida al Canal ---
+            _client.Ready += BotListoParaTrabajar;
+
+            // Cargamos el mÃ³dulo desde la DLL
             await _commands.AddModulesAsync(typeof(PokeGenBot.PokeModule).Assembly, _services);
 
             await _client.LoginAsync(TokenType.Bot, config.Token);
@@ -145,9 +192,9 @@ namespace Dev.PokeGen
 
             if (!ulong.TryParse(txtCanal.Text, out ulong canalId)) return;
 
-            ulong canalPermitidoId = canalId; // <--- TU ID AQUÍ
+            ulong canalPermitidoId = canalId; // <--- TU ID AQUÃ
 
-            // Si el mensaje NO viene de ese canal, cancelamos la ejecución inmediatamente.
+            // Si el mensaje NO viene de ese canal, cancelamos la ejecuciÃ³n inmediatamente.
             if (message.Channel.Id != canalPermitidoId)
             {
                 return;
@@ -158,24 +205,24 @@ namespace Dev.PokeGen
             if (message.HasCharPrefix('!', ref argPos))
             {
                 // Opcional: Si quieres evitar llenar la consola con comandos de otros bots,
-                // puedes mover este Log DEBAJO de la ejecución o filtrarlo también.
-                LogToConsole($"[PETICIÓN] {message.Author.Username}: {message.Content}", System.Drawing.Color.Yellow);
+                // puedes mover este Log DEBAJO de la ejecuciÃ³n o filtrarlo tambiÃ©n.
+                LogToConsole($"[PETICIÃ“N] {message.Author.Username}: {message.Content}", System.Drawing.Color.Yellow);
 
                 var context = new SocketCommandContext(_client, message);
                 var result = await _commands.ExecuteAsync(context, argPos, _services);
 
                 if (!result.IsSuccess)
                 {
-                    // --- AQUÍ ESTÁ EL CAMBIO ---
+                    // --- AQUÃ ESTÃ EL CAMBIO ---
                     if (result.Error == CommandError.UnknownCommand)
                         return;
 
-                    // Si es otro tipo de error (ej. faltan parámetros, error de código), entonces sí avísanos.
+                    // Si es otro tipo de error (ej. faltan parÃ¡metros, error de cÃ³digo), entonces sÃ­ avÃ­sanos.
                     LogToConsole($"[ERROR] {result.ErrorReason}", System.Drawing.Color.Red);
                 }
                 else
                 {
-                    LogToConsole($"[ÉXITO] Pokémon enviado a {message.Author.Username}", System.Drawing.Color.Lime);
+                    LogToConsole($"[Ã‰XITO] PokÃ©mon enviado a {message.Author.Username}", System.Drawing.Color.Lime);
                 }
             }
         }
